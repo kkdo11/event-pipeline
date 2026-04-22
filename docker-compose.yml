@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB:       events
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./sql/001_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./sql/002_indexes.sql:/docker-entrypoint-initdb.d/02_indexes.sql
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d events"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  generator:
+    build: .
+    environment:
+      POSTGRES_HOST:     postgres
+      POSTGRES_PORT:     5432
+      POSTGRES_DB:       events
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    command: >
+      uv run python -m src.generator.main
+        --rate 50
+        --duration 60
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  visualizer:
+    build: .
+    environment:
+      POSTGRES_HOST:     postgres
+      POSTGRES_PORT:     5432
+      POSTGRES_DB:       events
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    command: uv run python -m src.viz.plot
+    volumes:
+      - ./docs/charts:/app/docs/charts
+    depends_on:
+      generator:
+        condition: service_completed_successfully
+
+volumes:
+  pg_data:
