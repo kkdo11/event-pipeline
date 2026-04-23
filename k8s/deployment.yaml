@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-generator
+  namespace: default
+  labels:
+    app: event-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: event-generator
+  template:
+    metadata:
+      labels:
+        app: event-generator
+    spec:
+      containers:
+        - name: generator
+          image: event-pipeline:latest
+          command:
+            - uv
+            - run
+            - python
+            - -m
+            - src.generator.main
+          args:
+            - --rate
+            - "$(EVENT_RATE)"
+            - --duration
+            - "0"          # K8s에서는 무한 실행 (duration=0)
+          envFrom:
+            - configMapRef:
+                name: event-pipeline-config   # ConfigMap 환경변수 전체 주입
+            - secretRef:
+                name: event-pipeline-secret   # Secret 환경변수 전체 주입
+          resources:
+            requests:
+              cpu:    "100m"   # 0.1 코어 보장
+              memory: "128Mi"
+            limits:
+              cpu:    "500m"   # 최대 0.5 코어
+              memory: "256Mi"

@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: event-seed-heavy
+  namespace: default
+spec:
+  schedule: "0 2 * * *"   # 매일 새벽 2시 실행
+  concurrencyPolicy: Forbid  # 이전 실행이 끝나지 않으면 새 실행 건너뜀
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: seed-heavy
+              image: event-pipeline:latest
+              command:
+                - uv
+                - run
+                - python
+                - -m
+                - src.generator.main
+              args:
+                - --seed-heavy
+                - "100000"   # 매일 10만건 과거 데이터 백필
+              envFrom:
+                - configMapRef:
+                    name: event-pipeline-config
+                - secretRef:
+                    name: event-pipeline-secret
+              resources:
+                requests:
+                  cpu:    "200m"
+                  memory: "256Mi"
+                limits:
+                  cpu:    "1000m"
+                  memory: "512Mi"

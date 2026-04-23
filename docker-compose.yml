@@ -8,7 +8,7 @@ services:
     volumes:
       - ./sql/001_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
       - ./sql/002_indexes.sql:/docker-entrypoint-initdb.d/02_indexes.sql
-      - pg_data:/var/lib/postgresql/data
+      - /var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d events"]
       interval: 3s
@@ -48,5 +48,4 @@ services:
       generator:
         condition: service_completed_successfully
 
-volumes:
-  pg_data:
+# 볼륨 미사용 — docker compose up 할 때마다 깨끗한 상태에서 시작

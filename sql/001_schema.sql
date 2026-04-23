@@ -32,7 +32,17 @@ CREATE TABLE IF NOT EXISTS events (
     PRIMARY KEY (event_id, occurred_at)
 ) PARTITION BY RANGE (occurred_at);
 
--- 파티션 선제 생성 (2026-04, 2026-05)
+-- 파티션 선제 생성: 과거 3개월 + 현재 + 다음달
+-- (seed-heavy 시딩이 최근 90일 분산이라 과거 파티션이 필요)
+CREATE TABLE IF NOT EXISTS events_2026_01 PARTITION OF events
+    FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
+
+CREATE TABLE IF NOT EXISTS events_2026_02 PARTITION OF events
+    FOR VALUES FROM ('2026-02-01') TO ('2026-03-01');
+
+CREATE TABLE IF NOT EXISTS events_2026_03 PARTITION OF events
+    FOR VALUES FROM ('2026-03-01') TO ('2026-04-01');
+
 CREATE TABLE IF NOT EXISTS events_2026_04 PARTITION OF events
     FOR VALUES FROM ('2026-04-01') TO ('2026-05-01');
 

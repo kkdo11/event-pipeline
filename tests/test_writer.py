@@ -1,6 +1,7 @@
 """writer 통합 테스트 (실행 DB 필요 — docker compose 또는 로컬 postgres)."""
 from __future__ import annotations
 
+import json
 import os
 import pytest
 import psycopg
@@ -37,9 +38,18 @@ def test_insert_events_count(conn, pool):
 
 
 @NEEDS_DB
-def test_dlq_on_validation_failure(conn):
-    """잘못된 payload → broken_events 적재 확인."""
-    bad_payload = {"event_type": "purchase", "amount": -999}  # 필수 필드 누락 + 음수
+@pytest.mark.parametrize(
+    "bad_payload,reason",
+    [
+        ({"event_type": "purchase", "amount": -999}, "필수 필드 누락 + 음수 amount"),
+        ({"event_type": "purchase"}, "purchase 필수 필드(amount, currency) 누락"),
+        ({"event_type": "unknown_type"}, "허용되지 않은 event_type"),
+        ({}, "event_type 자체 누락"),
+        ({"event_type": "click", "session_id": "not-a-uuid"}, "UUID 형식 위반"),
+    ],
+)
+def test_dlq_on_validation_failure(conn, bad_payload, reason):
+    """깨진 payload 5종 → broken_events 적재 확인."""
     with conn.cursor() as cur:
         cur.execute("SELECT count(*) FROM broken_events")
         before = cur.fetchone()[0]
@@ -47,8 +57,11 @@ def test_dlq_on_validation_failure(conn):
     result = ingest_raw(conn, bad_payload)
 
     with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM broken_events WHERE raw_json = %s::jsonb", (json.dumps(bad_payload),))
+        matched = cur.fetchone()[0]
         cur.execute("SELECT count(*) FROM broken_events")
         after = cur.fetchone()[0]
 
-    assert result is False
-    assert after == before + 1
+    assert result is False, f"ingest_raw should return False for: {reason}"
+    assert after == before + 1, f"broken_events +1 expected for: {reason}"
+    assert matched >= 1, f"raw_json row should be persisted for: {reason}"
