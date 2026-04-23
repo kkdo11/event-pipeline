@@ -64,7 +64,7 @@ erDiagram
 
 ### 3-1. 3-테이블 정규화 (users / sessions / events)
 
-**문제**: 모든 이벤트에 user country, platform, user_agent 같은 메타데이터를 포함시키면 중복이 심각.
+**문제**: 모든 이벤트에 user country, platform, user_agent 같은 메타데이터를 포함시키면 중복 발생
 
 **대안 비교**
 
